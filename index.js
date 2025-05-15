@@ -25,8 +25,8 @@ async function fetchExistingData() {
 
 async function callOpenRouterDeepSeek(icpInput) {
   console.log('🔍 Calling OpenRouter DeepSeek with ICP:', icpInput);
-  const model = 'deepseek/deepseek-prover-v2:free'; // working model ID
-  const url = 'https://openrouter.ai/api/v1/chat/completions';
+  const model = 'deepseek/deepseek-prover-v2:free';
+  const url = 'https://openrouter.ai/v1/chat/completions';
 
   const body = {
     model,
@@ -52,12 +52,13 @@ async function callOpenRouterDeepSeek(icpInput) {
       body: JSON.stringify(body),
     });
 
-    const json = await res.json();
-    console.log('🔍 Raw response JSON:', JSON.stringify(json, null, 2));
+    const text = await res.text();
+    console.log('🧾 Raw response text:', text.slice(0, 300) + '...');
 
+    const json = JSON.parse(text);
 
     if (json.error) {
-      console.error('❌ DeepSeek error:', json.error);
+      console.error('❌ OpenRouter API error:', json.error);
       return null;
     }
 
@@ -69,13 +70,24 @@ async function callOpenRouterDeepSeek(icpInput) {
     ) {
       return json.choices[0].message.content;
     } else {
-      console.error('❌ DeepSeek returned no valid choices:', json);
+      console.error('❌ No valid content returned:', json);
       return null;
     }
   } catch (err) {
-    console.error('❌ Exception calling DeepSeek:', err);
+    console.error('❌ Exception in callOpenRouterDeepSeek:', err);
     return null;
   }
+}
+
+// New: Retry wrapper
+async function callOpenRouterWithRetry(icpInput, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const result = await callOpenRouterDeepSeek(icpInput);
+    if (result) return result;
+    console.warn(`⚠️ Attempt ${attempt + 1} failed for ICP: "${icpInput}"`);
+    await new Promise((r) => setTimeout(r, 1500)); // wait before retrying
+  }
+  return null;
 }
 
 async function insertReport(icpInput, report) {
@@ -96,31 +108,31 @@ async function insertReport(icpInput, report) {
 async function main() {
   const existingData = await fetchExistingData();
 
-  // If you want to generate for new ICPs, put them here or fetch from somewhere
-  // For demo, I'll use a sample ICP, or you can loop over inputs
   const icpSamples = [
     'Fintech startups for SMB lending in India',
     'B2B AI tools for marketing automation',
+    'AI SaaS tools for small ecommerce businesses',
   ];
 
   for (const icpInput of icpSamples) {
-    console.log(`\nProcessing ICP: "${icpInput}"`);
+    console.log(`\n🚀 Processing ICP: "${icpInput}"`);
 
-    // Call AI generation
-    const generatedReport = await callOpenRouterDeepSeek(icpInput);
+    const generatedReport = await callOpenRouterWithRetry(icpInput);
 
     if (!generatedReport) {
       console.log('❌ Failed to generate report.');
       await insertReport(icpInput, 'Failed to generate report.');
     } else {
-      console.log('📝 Generated report:', generatedReport);
+      console.log('📝 Generated report:', generatedReport.slice(0, 300) + '...');
       await insertReport(icpInput, generatedReport);
     }
+
+    // Delay between each ICP to avoid rate limits
+    await new Promise((r) => setTimeout(r, 2000));
   }
 
-  // Fetch all data again to see updated rows
   const finalData = await fetchExistingData();
-  console.log('📦 Supabase data:', finalData);
+  console.log('📦 Final Supabase data:', finalData);
 }
 
 main();
