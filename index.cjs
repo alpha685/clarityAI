@@ -1,4 +1,3 @@
-// index.cjs
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -6,34 +5,33 @@ const bodyParser = require("body-parser");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ✅ Enable CORS for all origins (for testing) — change to Framer domain later
-app.use(cors({
-  origin: "https://desirable-building-526665.framer.app",
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"]
-}));
-
+// ✅ Enable CORS for all origins
+app.use(cors());
 app.use(bodyParser.json());
 
-app.post("/generate", async (req, res) => {
-  console.log("✅ Request received at /generate");
-
-  const input = req.body.input;
-
-  // Dummy response for testing
-  const fakeReport = {
-    title: "Startup Report",
-    inputReceived: input,
-    summary: "This is a test summary generated from backend.",
-  };
-
-  res.json(fakeReport);
+// ✅ Health check route for "/"
+app.get("/", (req, res) => {
+  res.json({ message: "Clarity backend running" });
 });
 
-app.get("/", (req, res) => {
-  res.send("🚀 Backend is running");
+// ✅ Main report generation endpoint
+app.post("/generate", async (req, res) => {
+  const userInput = req.body.input;
+
+  if (!userInput) {
+    return res.status(400).json({ error: "Input is required" });
+  }
+
+  // Simulated response
+  const report = {
+    summary: `Generated report for: ${userInput}`,
+    status: "success",
+    date: new Date().toISOString()
+  };
+
+  res.json(report);
 });
 
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+  console.log(`✅ Server running on port ${port}`);
 });
