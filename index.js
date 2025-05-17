@@ -8,15 +8,18 @@ dotenv.config();
 
 const app = express();
 
-// ✅ Allow CORS only from your Framer frontend URL
+// ✅ Must be at the very top BEFORE any routes
 const allowedOrigin = "https://desirable-building-526665.framer.app";
-app.use(
-  cors({
-    origin: allowedOrigin,
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", allowedOrigin);
+  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200); // 👈 Handle preflight immediately
+  }
+  next();
+});
 
 app.use(express.json());
 
