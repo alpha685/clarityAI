@@ -1,37 +1,39 @@
-import dotenv from "dotenv";
-import express from "express";
-import cors from "cors";
-import { createClient } from "@supabase/supabase-js";
-import fetch from "node-fetch";
+import express from "express"
+import dotenv from "dotenv"
+import cors from "cors"
+import { createClient } from "@supabase/supabase-js"
+import fetch from "node-fetch"
 
-dotenv.config();
+dotenv.config()
 
-const app = express();
+const app = express()
 
-// ✅ Must be at the very top BEFORE any routes
-const allowedOrigin = "https://desirable-building-526665.framer.app";
+// ✅ Correct & complete CORS config
+const allowedOrigins = ["https://desirable-building-526665.framer.app"]
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error("Not allowed by CORS"))
+    }
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+  credentials: true
+}))
 
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", allowedOrigin);
-  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200); // 👈 Handle preflight immediately
-  }
-  next();
-});
+app.use(express.json())
 
-app.use(express.json());
+const SUPABASE_URL = process.env.SUPABASE_URL
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 async function callOpenRouterDeepSeek(icpInput) {
-  const url = "https://openrouter.ai/api/v1/chat/completions";
-  const model = "deepseek/deepseek-prover-v2:free";
+  const url = "https://openrouter.ai/api/v1/chat/completions"
+  const model = "deepseek/deepseek-prover-v2:free"
 
   const body = {
     model,
@@ -46,7 +48,7 @@ async function callOpenRouterDeepSeek(icpInput) {
         content: `Generate a detailed startup report for the following ICP:\n${icpInput}`,
       },
     ],
-  };
+  }
 
   try {
     const res = await fetch(url, {
@@ -56,20 +58,13 @@ async function callOpenRouterDeepSeek(icpInput) {
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       },
       body: JSON.stringify(body),
-    });
+    })
 
-    const text = await res.text();
-    const json = JSON.parse(text);
-
-    if (json?.choices?.[0]?.message?.content) {
-      return json.choices[0].message.content;
-    } else {
-      console.error("Invalid response:", json);
-      return null;
-    }
+    const json = await res.json()
+    return json?.choices?.[0]?.message?.content || null
   } catch (err) {
-    console.error("Error calling OpenRouter:", err);
-    return null;
+    console.error("Error calling OpenRouter:", err)
+    return null
   }
 }
 
@@ -77,35 +72,33 @@ async function insertReport(icpInput, report) {
   const { data, error } = await supabase
     .from("reports")
     .insert([{ icp_input: icpInput, report }])
-    .select();
+    .select()
 
   if (error) {
-    console.error("Error inserting report:", error);
-    return null;
+    console.error("Error inserting report:", error)
+    return null
   }
 
-  return data;
+  return data
 }
 
 app.post("/generate", async (req, res) => {
-  const { icp } = req.body;
+  const { icp } = req.body
 
-  if (!icp) {
-    return res.status(400).json({ error: "Missing ICP input" });
-  }
+  if (!icp) return res.status(400).json({ error: "Missing ICP input" })
 
-  const report = await callOpenRouterDeepSeek(icp);
+  const report = await callOpenRouterDeepSeek(icp)
 
   if (!report) {
-    await insertReport(icp, "Failed to generate report.");
-    return res.status(500).json({ error: "Failed to generate report" });
+    await insertReport(icp, "Failed to generate report.")
+    return res.status(500).json({ error: "Failed to generate report" })
   }
 
-  await insertReport(icp, report);
-  return res.json({ icp, report });
-});
+  await insertReport(icp, report)
+  return res.json({ icp, report })
+})
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8080
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
-});
+  console.log(`✅ Server running on http://0.0.0.0:${PORT}`)
+})
