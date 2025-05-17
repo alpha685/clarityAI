@@ -1,106 +1,51 @@
-import express from "express"
-import dotenv from "dotenv"
-import cors from "cors"
-import { createClient } from "@supabase/supabase-js"
-import fetch from "node-fetch"
-
-dotenv.config()
+const express = require("express")
+const cors = require("cors")
+const bodyParser = require("body-parser")
 
 const app = express()
+const port = process.env.PORT || 3000
 
-// ✅ Correct & complete CORS config
+// ✅ Whitelist your frontend domain
 const allowedOrigins = ["https://desirable-building-526665.framer.app"]
-// 👇 MUST be before `app.use(cors(...))`
-app.options("*", cors())  // <-- Handle preflight requests globally
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true)
-    } else {
-      callback(new Error("Not allowed by CORS"))
-    }
-  },
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
-  credentials: true
-}))
 
-app.use(express.json())
-
-const SUPABASE_URL = process.env.SUPABASE_URL
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
-async function callOpenRouterDeepSeek(icpInput) {
-  const url = "https://openrouter.ai/api/v1/chat/completions"
-  const model = "deepseek/deepseek-prover-v2:free"
-
-  const body = {
-    model,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a startup research assistant that generates detailed startup reports based on an ICP (Ideal Customer Profile). Provide comprehensive, insightful, and actionable reports.",
-      },
-      {
-        role: "user",
-        content: `Generate a detailed startup report for the following ICP:\n${icpInput}`,
-      },
-    ],
+// ✅ Setup CORS with preflight handling
+app.use((req, res, next) => {
+  const origin = req.headers.origin
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin)
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type")
   }
 
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-      },
-      body: JSON.stringify(body),
-    })
-
-    const json = await res.json()
-    return json?.choices?.[0]?.message?.content || null
-  } catch (err) {
-    console.error("Error calling OpenRouter:", err)
-    return null
-  }
-}
-
-async function insertReport(icpInput, report) {
-  const { data, error } = await supabase
-    .from("reports")
-    .insert([{ icp_input: icpInput, report }])
-    .select()
-
-  if (error) {
-    console.error("Error inserting report:", error)
-    return null
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200)
   }
 
-  return data
-}
-
-app.post("/generate", async (req, res) => {
-  const { icp } = req.body
-
-  if (!icp) return res.status(400).json({ error: "Missing ICP input" })
-
-  const report = await callOpenRouterDeepSeek(icp)
-
-  if (!report) {
-    await insertReport(icp, "Failed to generate report.")
-    return res.status(500).json({ error: "Failed to generate report" })
-  }
-
-  await insertReport(icp, report)
-  return res.json({ icp, report })
+  next()
 })
 
-const PORT = process.env.PORT || 8080
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Server running on http://0.0.0.0:${PORT}`)
+app.use(bodyParser.json())
+
+app.post("/generate", async (req, res) => {
+  console.log("✅ /generate hit with:", req.body)
+
+  // Dummy report example
+  const report = {
+    startupName: "AI Growth Co.",
+    insights: [
+      "Large TAM in SMB automation.",
+      "Early signs of product-market fit.",
+      "Opportunity in vertical SaaS expansion."
+    ]
+  }
+
+  res.json({ report })
+})
+
+app.get("/", (req, res) => {
+  res.send("ClarityYAI backend is running ✅")
+})
+
+app.listen(port, () => {
+  console.log(`🚀 Server is listening on port ${port}`)
 })
