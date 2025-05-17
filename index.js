@@ -6,19 +6,27 @@ import fetch from "node-fetch";
 
 dotenv.config();
 
+const app = express();
+
+// ✅ Allow CORS only from your Framer frontend URL
+const allowedOrigin = "https://desirable-building-526665.framer.app";
+app.use(
+  cors({
+    origin: allowedOrigin,
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
+app.use(express.json());
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-const app = express();
-app.use(cors()); // ✅ CORS enabled
-app.use(express.json());
-
 async function callOpenRouterDeepSeek(icpInput) {
-  console.log("🔍 Calling OpenRouter DeepSeek with ICP:", icpInput);
-
   const url = "https://openrouter.ai/api/v1/chat/completions";
   const model = "deepseek/deepseek-prover-v2:free";
 
@@ -48,18 +56,16 @@ async function callOpenRouterDeepSeek(icpInput) {
     });
 
     const text = await res.text();
-    console.log("🧾 Raw response text:", text.slice(0, 200));
-
     const json = JSON.parse(text);
 
     if (json?.choices?.[0]?.message?.content) {
       return json.choices[0].message.content;
     } else {
-      console.error("❌ Invalid response:", json);
+      console.error("Invalid response:", json);
       return null;
     }
   } catch (err) {
-    console.error("❌ Exception in callOpenRouterDeepSeek:", err);
+    console.error("Error calling OpenRouter:", err);
     return null;
   }
 }
@@ -71,11 +77,10 @@ async function insertReport(icpInput, report) {
     .select();
 
   if (error) {
-    console.error("❌ Error inserting report:", error);
+    console.error("Error inserting report:", error);
     return null;
   }
 
-  console.log("✅ Report inserted into Supabase:", data);
   return data;
 }
 
@@ -85,8 +90,6 @@ app.post("/generate", async (req, res) => {
   if (!icp) {
     return res.status(400).json({ error: "Missing ICP input" });
   }
-
-  console.log(`⚙️  Generating report for ICP: "${icp}"`);
 
   const report = await callOpenRouterDeepSeek(icp);
 
