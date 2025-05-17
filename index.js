@@ -1,14 +1,13 @@
-const express = require("express")
-const cors = require("cors")
-const bodyParser = require("body-parser")
+import express from "express"
+import cors from "cors"
+import bodyParser from "body-parser"
 
 const app = express()
 const port = process.env.PORT || 3000
 
-// ✅ Whitelist your frontend domain
 const allowedOrigins = ["https://desirable-building-526665.framer.app"]
 
-// ✅ Setup CORS with preflight handling
+// CORS middleware
 app.use((req, res, next) => {
   const origin = req.headers.origin
   if (allowedOrigins.includes(origin)) {
@@ -29,7 +28,7 @@ app.use(bodyParser.json())
 app.post("/generate", async (req, res) => {
   console.log("✅ /generate hit with:", req.body)
 
-  // Dummy report example
+  // Dummy report
   const report = {
     startupName: "AI Growth Co.",
     insights: [
