@@ -10,6 +10,8 @@ const app = express()
 
 // ✅ Correct & complete CORS config
 const allowedOrigins = ["https://desirable-building-526665.framer.app"]
+// 👇 MUST be before `app.use(cors(...))`
+app.options("*", cors())  // <-- Handle preflight requests globally
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
