@@ -26,7 +26,7 @@ async function getValidKey() {
       await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
         {
-          model: "mistral/mistral-7b-instruct",
+          model: "deepseek/deepseek-prover-v2:free",
           messages: [{ role: "user", content: "ping" }]
         },
         {
