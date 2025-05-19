@@ -7,25 +7,41 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Use CORS with correct options and enable preflight
+const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
+
+// ✅ Framer domain
+const FRAMER_DOMAIN = "https://fuchsia-meeting-913037.framer.app";
+
+// ✅ CORS middleware
 app.use(cors({
-  origin: "https://fuchsia-meeting-913037.framer.app", // 👈 Your Framer site
+  origin: FRAMER_DOMAIN,
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
-// ✅ Explicitly handle preflight requests
-app.options("*", cors());
-
+// ✅ Body parser
 app.use(express.json());
 
-const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
+// ✅ Manual headers for ALL requests (belt & suspenders)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", FRAMER_DOMAIN);
+  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  next();
+});
 
+// ✅ Explicit preflight response
+app.options("*", (req, res) => {
+  res.sendStatus(204);
+});
+
+// ✅ Health check
 app.get("/", (req, res) => {
   res.send("ClarityAI is running successfully 🚀");
 });
 
+// ✅ Main API endpoint
 app.post("/generate-report", async (req, res) => {
   const userInput = req.body.prompt || "Write a startup report about AI in healthtech.";
 
@@ -47,7 +63,7 @@ app.post("/generate-report", async (req, res) => {
     const summary = response.data.choices[0]?.message?.content || "No summary found.";
     res.json({ summary });
   } catch (error) {
-    console.error(error?.response?.data || error.message);
+    console.error("❌ Error in Together API:", error?.response?.data || error.message);
     res.status(500).json({ summary: "Failed to fetch summary." });
   }
 });
