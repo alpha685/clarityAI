@@ -8,66 +8,27 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Load keys from environment variables
-const keys = Object.entries(process.env)
-  .filter(([key]) => key.startsWith("OPENROUTER_API_KEY_"))
-  .sort(([a], [b]) => a.localeCompare(b)) // Sort to maintain order: 1, 2, 3...
-  .map(([_, value]) => value);
-
-let currentKeyIndex = 0;
-
-// Function to rotate and get a working key
-async function getValidKey() {
-  let retries = 0;
-  while (retries < keys.length) {
-    const key = keys[currentKeyIndex];
-    try {
-      // Lightweight ping to validate key
-      await axios.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          model: "deepseek/deepseek-prover-v2:free",
-          messages: [{ role: "user", content: "ping" }]
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${key}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-      return key;
-    } catch (err) {
-      if (err.response?.status === 429 || err.response?.status === 401) {
-        console.warn(`❌ Key ${currentKeyIndex + 1} failed. Rotating...`);
-        currentKeyIndex = (currentKeyIndex + 1) % keys.length;
-        retries++;
-      } else {
-        throw err;
-      }
-    }
-  }
-  throw new Error("All OpenRouter keys are exhausted.");
-}
-
+// Root route
 app.get("/", (req, res) => {
   res.send("ClarityAI is running successfully 🚀");
 });
 
+// Generate Report route using Together.ai
 app.post("/generate-report", async (req, res) => {
   const userInput = req.body.prompt || "Write a startup report about AI in healthtech.";
 
   try {
-    const key = await getValidKey();
     const response = await axios.post(
-      "https://openrouter.ai/api/v1/chat/completions",
+      "https://api.together.xyz/v1/chat/completions",
       {
-        model: "mistral/mistral-7b-instruct",
-        messages: [{ role: "user", content: userInput }]
+        model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        messages: [{ role: "user", content: userInput }],
+        temperature: 0.7,
+        max_tokens: 1024
       },
       {
         headers: {
-          Authorization: `Bearer ${key}`,
+          Authorization: `Bearer ${process.env.TOGETHER_API_KEY}`,
           "Content-Type": "application/json"
         }
       }
@@ -76,7 +37,7 @@ app.post("/generate-report", async (req, res) => {
     const summary = response.data.choices[0]?.message?.content || "No summary found.";
     res.json({ summary });
   } catch (error) {
-    console.error("❌ Error generating report:", error.message);
+    console.error("Together.ai error:", error?.response?.data || error.message);
     res.status(500).json({ summary: "Failed to fetch summary." });
   }
 });
