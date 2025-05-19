@@ -15,22 +15,24 @@ const FRAMER_DOMAIN = "https://fuchsia-meeting-913037.framer.app";
 
 // ✅ CORS middleware
 app.use(cors({
-  origin: FRAMER_DOMAIN,
+  origin: "*", // ← temporarily allow all
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
 }));
+
 
 // ✅ Body parser
 app.use(express.json());
 
 // ✅ Manual headers for ALL requests (belt & suspenders)
+// ✅ Manual headers for ALL requests (belt & suspenders)
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", FRAMER_DOMAIN);
+  res.header("Access-Control-Allow-Origin", "*"); // ← for now
   res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   next();
 });
+
 
 // ✅ Explicit preflight response
 app.options("*", (req, res) => {
