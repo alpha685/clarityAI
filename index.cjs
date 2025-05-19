@@ -1,6 +1,8 @@
 const express = require("express");
 const axios = require("axios");
 const dotenv = require("dotenv");
+const cors = require("cors");
+const fs = require("fs");
 
 dotenv.config();
 const app = express();
@@ -8,12 +10,20 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Root route
+// ✅ Enable CORS for all origins (or restrict to just your Framer domain)
+app.use(cors({
+  origin: ["https://fuchsia-meeting-913037.framer.app"], // <-- your Framer domain
+  methods: ["POST", "GET"],
+  credentials: true
+}));
+
+// Load Together.ai key
+const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
+
 app.get("/", (req, res) => {
   res.send("ClarityAI is running successfully 🚀");
 });
 
-// Generate Report route using Together.ai
 app.post("/generate-report", async (req, res) => {
   const userInput = req.body.prompt || "Write a startup report about AI in healthtech.";
 
@@ -23,12 +33,10 @@ app.post("/generate-report", async (req, res) => {
       {
         model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
         messages: [{ role: "user", content: userInput }],
-        temperature: 0.7,
-        max_tokens: 1024
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.TOGETHER_API_KEY}`,
+          Authorization: `Bearer ${TOGETHER_API_KEY}`,
           "Content-Type": "application/json"
         }
       }
@@ -37,7 +45,7 @@ app.post("/generate-report", async (req, res) => {
     const summary = response.data.choices[0]?.message?.content || "No summary found.";
     res.json({ summary });
   } catch (error) {
-    console.error("Together.ai error:", error?.response?.data || error.message);
+    console.error(error?.response?.data || error.message);
     res.status(500).json({ summary: "Failed to fetch summary." });
   }
 });
