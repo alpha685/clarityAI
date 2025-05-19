@@ -2,22 +2,24 @@ const express = require("express");
 const axios = require("axios");
 const dotenv = require("dotenv");
 const cors = require("cors");
-const fs = require("fs");
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
-
-// ✅ Enable CORS for all origins (or restrict to just your Framer domain)
+// ✅ Use CORS with correct options and enable preflight
 app.use(cors({
-  origin: ["https://fuchsia-meeting-913037.framer.app"], // <-- your Framer domain
-  methods: ["POST", "GET"],
+  origin: "https://fuchsia-meeting-913037.framer.app", // 👈 Your Framer site
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
-// Load Together.ai key
+// ✅ Explicitly handle preflight requests
+app.options("*", cors());
+
+app.use(express.json());
+
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
 app.get("/", (req, res) => {
