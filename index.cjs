@@ -1,7 +1,6 @@
 const express = require("express");
 const axios = require("axios");
 const dotenv = require("dotenv");
-const fs = require("fs");
 
 dotenv.config();
 const app = express();
@@ -9,16 +8,21 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Load keys
-let { keys } = require("./apiKeys.json");
+// Load keys from environment variables
+const keys = Object.entries(process.env)
+  .filter(([key]) => key.startsWith("OPENROUTER_API_KEY_"))
+  .sort(([a], [b]) => a.localeCompare(b)) // Sort to maintain order: 1, 2, 3...
+  .map(([_, value]) => value);
+
 let currentKeyIndex = 0;
 
-// Function to get the next working key
+// Function to rotate and get a working key
 async function getValidKey() {
-  while (currentKeyIndex < keys.length) {
+  let retries = 0;
+  while (retries < keys.length) {
     const key = keys[currentKeyIndex];
     try {
-      // Test the key with a lightweight request
+      // Lightweight ping to validate key
       await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
         {
@@ -35,13 +39,15 @@ async function getValidKey() {
       return key;
     } catch (err) {
       if (err.response?.status === 429 || err.response?.status === 401) {
-        currentKeyIndex++;
+        console.warn(`❌ Key ${currentKeyIndex + 1} failed. Rotating...`);
+        currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+        retries++;
       } else {
         throw err;
       }
     }
   }
-  throw new Error("All OpenRouter keys exhausted.");
+  throw new Error("All OpenRouter keys are exhausted.");
 }
 
 app.get("/", (req, res) => {
@@ -70,7 +76,7 @@ app.post("/generate-report", async (req, res) => {
     const summary = response.data.choices[0]?.message?.content || "No summary found.";
     res.json({ summary });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error generating report:", error.message);
     res.status(500).json({ summary: "Failed to fetch summary." });
   }
 });
