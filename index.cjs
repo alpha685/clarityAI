@@ -10,28 +10,37 @@ const PORT = process.env.PORT || 3000; // ✅ Railway injects PORT automatically
 
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
-// ✅ Framer domain
-const FRAMER_DOMAIN = "https://fuchsia-meeting-913037.framer.app";
+const ALLOWED_ORIGINS = [
+  "https://fuchsia-meeting-913037.framer.app",
+  "http://localhost:3000"
+];
 
-// ✅ CORS middleware
 app.use(cors({
-  origin: "*", // ← temporarily allow all
+  origin: function (origin, callback) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
-
 
 // ✅ Body parser
 app.use(express.json());
 
-// ✅ Manual headers for ALL requests (belt & suspenders)
-// ✅ Manual headers for ALL requests (belt & suspenders)
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*"); // ← for now
-  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   next();
 });
+
 
 
 // ✅ Explicit preflight response
