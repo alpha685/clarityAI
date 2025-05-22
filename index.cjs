@@ -15,37 +15,39 @@ const ALLOWED_ORIGINS = [
   "http://localhost:3000"
 ];
 
+const allowedOrigins = [
+  "https://fuchsia-meeting-913037.framer.app",
+  "http://localhost:3000"
+];
+
+// ✅ CORS middleware with dynamic origin check
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
     }
   },
+  credentials: true,
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// ✅ Body parser
-app.use(express.json());
-
+// ✅ Also manually set headers just in case
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (ALLOWED_ORIGINS.includes(origin)) {
+  if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   next();
 });
 
-
-
-// ✅ Explicit preflight response
+// ✅ Preflight route for OPTIONS
 app.options("*", (req, res) => {
-  res.sendStatus(204);
+  res.sendStatus(200);
 });
 
 // ✅ Health check
