@@ -1,38 +1,27 @@
 const express = require("express");
 const axios = require("axios");
-const dotenv = require("dotenv");
 const cors = require("cors");
+const dotenv = require("dotenv");
 
 dotenv.config();
+
 const app = express();
-const PORT = process.env.PORT || 3000; // ✅ Railway injects PORT automatically
+const PORT = process.env.PORT || 3000;
 
-
-const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
-
-const ALLOWED_ORIGINS = [
-  "https://fuchsia-meeting-913037.framer.app",
-  "http://localhost:3000"
-];
-
-const allowedOrigins = [
-  "https://fuchsia-meeting-913037.framer.app",
-  "http://localhost:3000"
-];
-
-// ✅ CORS middleware with dynamic origin check
+// ✅ Add CORS middleware BEFORE routes
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
+  origin: "*", // OR use 'http://localhost:3000' during local dev
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// ✅ Explicit preflight handler
+app.options("*", (req, res) => {
+  res.sendStatus(204);
+});
+
+app.use(express.json());
+
 
 // ✅ Also manually set headers just in case
 app.use((req, res, next) => {
