@@ -1,47 +1,36 @@
 const express = require("express");
 const axios = require("axios");
-const cors = require("cors");
 const dotenv = require("dotenv");
+const cors = require("cors");
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
-
-// ✅ Allow local frontend + framer
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://fuchsia-meeting-913037.framer.app"
-];
-
+// ✅ This MUST be before any routes
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed for this origin"));
-    }
-  },
+  origin: "*", // OR restrict to specific origin like: "http://localhost:3000"
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
 
 // ✅ Manual headers just in case (belt & suspenders)
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Origin", "*"); // or "http://localhost:3000"
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
   next();
 });
 
+
 app.options("*", (req, res) => {
-  res.sendStatus(204);
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  return res.sendStatus(200);
 });
+
 
 app.use(express.json());
 
