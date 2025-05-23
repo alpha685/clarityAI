@@ -4,47 +4,51 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 
 dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Add CORS middleware BEFORE routes
+const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
+
+// ✅ Allow local frontend + framer
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://fuchsia-meeting-913037.framer.app"
+];
+
 app.use(cors({
-  origin: "*", // OR use 'http://localhost:3000' during local dev
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed for this origin"));
+    }
+  },
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
 
-// ✅ Explicit preflight handler
+// ✅ Manual headers just in case (belt & suspenders)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  next();
+});
+
 app.options("*", (req, res) => {
   res.sendStatus(204);
 });
 
 app.use(express.json());
 
-
-// ✅ Also manually set headers just in case
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
-
-// ✅ Preflight route for OPTIONS
-app.options("*", (req, res) => {
-  res.sendStatus(200);
-});
-
-// ✅ Health check
 app.get("/", (req, res) => {
-  res.send("ClarityAI is running successfully 🚀");
+  res.send("ClarityAI backend is running successfully 🚀");
 });
 
-// ✅ Main API endpoint
 app.post("/generate-report", async (req, res) => {
   const userInput = req.body.prompt || "Write a startup report about AI in healthtech.";
 
@@ -53,7 +57,7 @@ app.post("/generate-report", async (req, res) => {
       "https://api.together.xyz/v1/chat/completions",
       {
         model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
-        messages: [{ role: "user", content: userInput }],
+        messages: [{ role: "user", content: userInput }]
       },
       {
         headers: {
@@ -66,11 +70,11 @@ app.post("/generate-report", async (req, res) => {
     const summary = response.data.choices[0]?.message?.content || "No summary found.";
     res.json({ summary });
   } catch (error) {
-    console.error("❌ Error in Together API:", error?.response?.data || error.message);
+    console.error("❌ Together API error:", error?.response?.data || error.message);
     res.status(500).json({ summary: "Failed to fetch summary." });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
