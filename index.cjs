@@ -8,28 +8,25 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
-// ✅ Allow requests from all origins OR just localhost/framer
-app.use(cors({
-  origin: ["http://localhost:3000", "https://fuchsia-meeting-913037.framer.app"],
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
-}));
+// ✅ Enable CORS (allow localhost + framer)
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "https://fuchsia-meeting-913037.framer.app"
+];
 
-// ✅ Explicit preflight handler
-app.options("*", (req, res) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin);
-  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  return res.sendStatus(200);
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  next();
 });
 
-// ✅ Extra safety middleware
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin);
-  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
+// ✅ Handle preflight OPTIONS request explicitly
+app.options("*", (req, res) => {
+  res.sendStatus(204);
 });
 
 app.use(express.json());
@@ -39,7 +36,7 @@ app.get("/", (req, res) => {
   res.send("ClarityAI is running successfully 🚀");
 });
 
-// ✅ Generate report route
+// ✅ Main API
 app.post("/generate-report", async (req, res) => {
   const userInput = req.body.prompt || "Write a startup report about AI in healthtech.";
   try {
@@ -47,7 +44,7 @@ app.post("/generate-report", async (req, res) => {
       "https://api.together.xyz/v1/chat/completions",
       {
         model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
-        messages: [{ role: "user", content: userInput }],
+        messages: [{ role: "user", content: userInput }]
       },
       {
         headers: {
@@ -61,11 +58,11 @@ app.post("/generate-report", async (req, res) => {
     res.json({ summary });
 
   } catch (error) {
-    console.error("❌ Error in Together API:", error?.response?.data || error.message);
+    console.error("❌ Error:", error?.response?.data || error.message);
     res.status(500).json({ summary: "Failed to fetch summary." });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ ClarityAI backend running at http://localhost:${PORT}`);
+  console.log(`✅ Backend running on port ${PORT}`);
 });
