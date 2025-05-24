@@ -8,39 +8,40 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
-// ✅ Allow both localhost and Framer in production
-const ALLOWED_ORIGINS = [
-  "http://localhost:3000",
-  "https://localhost:3899",    // Added your dev frontend origin
-  "http://localhost:3899",     // HTTP fallback
-  "https://fuchsia-meeting-913037.framer.app"
-];
-
-// ✅ Configure CORS properly
+// Configure CORS properly for all environments
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (ALLOWED_ORIGINS.includes(origin) || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "OPTIONS"],
+  origin: [
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "http://localhost:3899",
+    "https://localhost:3899",
+    "https://fuchsia-meeting-913037.framer.app",
+    "https://your-production-frontend-url.com" // Add your production frontend URL
+  ],
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 200 // For legacy browser support
 };
 
+// Apply CORS middleware
 app.use(cors(corsOptions));
-app.use(express.json());
 
-// Simple preflight handler
+// Handle preflight requests
 app.options("*", cors(corsOptions));
+
+app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("ClarityAI is running successfully 🚀");
 });
 
 app.post("/generate-report", async (req, res) => {
+  // Explicitly set CORS headers for this endpoint
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  
   const userInput = req.body.prompt || "Write a startup report about AI in healthtech.";
 
   try {
