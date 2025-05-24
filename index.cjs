@@ -8,12 +8,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
-// ✅ Enable CORS (allow localhost + framer)
+// ✅ Allow both localhost and Framer in production
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "https://fuchsia-meeting-913037.framer.app"
 ];
 
+// ✅ Set dynamic CORS headers for all requests
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (ALLOWED_ORIGINS.includes(origin)) {
@@ -21,30 +22,28 @@ app.use((req, res, next) => {
   }
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
   next();
-});
-
-// ✅ Handle preflight OPTIONS request explicitly
-app.options("*", (req, res) => {
-  res.sendStatus(204);
 });
 
 app.use(express.json());
 
-// ✅ Health check
 app.get("/", (req, res) => {
   res.send("ClarityAI is running successfully 🚀");
 });
 
-// ✅ Main API
 app.post("/generate-report", async (req, res) => {
   const userInput = req.body.prompt || "Write a startup report about AI in healthtech.";
+
   try {
     const response = await axios.post(
       "https://api.together.xyz/v1/chat/completions",
       {
         model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
-        messages: [{ role: "user", content: userInput }]
+        messages: [{ role: "user", content: userInput }],
       },
       {
         headers: {
