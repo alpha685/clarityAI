@@ -8,40 +8,54 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
-// Configure CORS properly for all environments
+// Enhanced CORS configuration
 const corsOptions = {
-  origin: [
-    "http://localhost:3000",
-    "https://localhost:3000",
-    "http://localhost:3899",
-    "https://localhost:3899",
-    "https://fuchsia-meeting-913037.framer.app",
-    "https://your-production-frontend-url.com" // Add your production frontend URL
-  ],
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "https://localhost:3000",
+      "http://localhost:3899",
+      "https://localhost:3899",
+      "https://fuchsia-meeting-913037.framer.app",
+      "https://your-production-frontend.com" // Add your production URL
+    ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: "GET,POST,OPTIONS",
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
-  optionsSuccessStatus: 200 // For legacy browser support
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
 
-// Handle preflight requests
+// Explicit OPTIONS handler
 app.options("*", cors(corsOptions));
 
+// Body parser middleware
 app.use(express.json());
 
+// Health check endpoint
 app.get("/", (req, res) => {
   res.send("ClarityAI is running successfully 🚀");
 });
 
+// Report generation endpoint with manual CORS headers
 app.post("/generate-report", async (req, res) => {
-  // Explicitly set CORS headers for this endpoint
+  // Set CORS headers manually as fallback
   res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
   res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  
+  res.header("Access-Control-Allow-Credentials", "true");
+
   const userInput = req.body.prompt || "Write a startup report about AI in healthtech.";
 
   try {
@@ -50,21 +64,40 @@ app.post("/generate-report", async (req, res) => {
       {
         model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
         messages: [{ role: "user", content: userInput }],
+        temperature: 0.7,
+        max_tokens: 2000
       },
       {
         headers: {
           Authorization: `Bearer ${TOGETHER_API_KEY}`,
           "Content-Type": "application/json"
-        }
+        },
+        timeout: 30000 // 30 seconds timeout
       }
     );
 
     const summary = response.data.choices[0]?.message?.content || "No summary found.";
-    res.json({ summary });
+    res.json({ 
+      success: true,
+      data: summary 
+    });
 
   } catch (error) {
-    console.error("❌ Error:", error?.response?.data || error.message);
-    res.status(500).json({ summary: "Failed to fetch summary." });
+    console.error("❌ Backend Error:", error?.response?.data || error.message);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to generate report",
+      details: error.message
+    });
+  }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  if (err.message === 'Not allowed by CORS') {
+    res.status(403).json({ error: "CORS policy blocked this request" });
+  } else {
+    next(err);
   }
 });
 
