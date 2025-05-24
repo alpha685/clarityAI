@@ -8,31 +8,20 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
-// Enhanced CORS configuration
 const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      "http://localhost:3000",
-      "https://localhost:3000",
-      "http://localhost:3899",
-      "https://localhost:3899",
-      "https://fuchsia-meeting-913037.framer.app",
-      "https://your-production-frontend.com" // Add your production URL
-    ];
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    "http://localhost:3000",
+    "https://fuchsia-meeting-913037.framer.app"
+  ],
+  credentials: true,
   methods: "GET,POST,OPTIONS",
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-  preflightContinue: false,
   optionsSuccessStatus: 204
 };
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // handle preflight
+
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
@@ -57,7 +46,7 @@ app.get("/", (req, res) => {
 // Report generation endpoint with manual CORS headers
 app.post("/generate-report", async (req, res) => {
   // Set CORS headers manually as fallback
-  res.header("Access-Control-Allow-Origin", "*"); // <- Use wildcard in Railway
+  res.header("Access-Control-Allow-Origin", "http://localhost:3000");
   res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
