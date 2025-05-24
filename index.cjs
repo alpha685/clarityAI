@@ -11,25 +11,30 @@ const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 // ✅ Allow both localhost and Framer in production
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
+  "https://localhost:3899",    // Added your dev frontend origin
+  "http://localhost:3899",     // HTTP fallback
   "https://fuchsia-meeting-913037.framer.app"
 ];
 
-// ✅ Set dynamic CORS headers for all requests
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-  next();
-});
+// ✅ Configure CORS properly
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (ALLOWED_ORIGINS.includes(origin) || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+};
 
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Simple preflight handler
+app.options("*", cors(corsOptions));
 
 app.get("/", (req, res) => {
   res.send("ClarityAI is running successfully 🚀");
