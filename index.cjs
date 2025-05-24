@@ -38,7 +38,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Explicit OPTIONS handler
-app.options("*", cors(corsOptions));
+app.options("*", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.sendStatus(204);
+});
+
 
 // Body parser middleware
 app.use(express.json());
@@ -51,7 +57,7 @@ app.get("/", (req, res) => {
 // Report generation endpoint with manual CORS headers
 app.post("/generate-report", async (req, res) => {
   // Set CORS headers manually as fallback
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Origin", "*"); // <- Use wildcard in Railway
   res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
