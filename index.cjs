@@ -8,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
+// --- CORS Configuration ---
 const corsOptions = {
   origin: [
     "http://localhost:3000",
@@ -20,45 +21,53 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // handle preflight
-
-
-// Apply CORS middleware
-app.use(cors(corsOptions));
-
-// Explicit OPTIONS handler
-app.options("*", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.sendStatus(204);
-});
-
-
-// Body parser middleware
+app.options("*", cors(corsOptions)); // Preflight support
 app.use(express.json());
 
-// Health check endpoint
+// --- Health Check Endpoint ---
 app.get("/", (req, res) => {
-  res.send("ClarityAI is running successfully 🚀");
+  res.send("✅ ClarityAI is running successfully!");
 });
 
-// Report generation endpoint with manual CORS headers
+// --- Main Endpoint ---
 app.post("/generate-report", async (req, res) => {
-  // Set CORS headers manually as fallback
+  // Manual fallback headers
   res.header("Access-Control-Allow-Origin", "http://localhost:3000");
   res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
 
-  const userInput = req.body.prompt || "Write a startup report about AI in healthtech.";
+  const userInput = req.body.prompt || "AI startups in India";
+
+  // 🔧 SYSTEM PROMPT ENGINEERING — ensures output is sectioned and clean
+  const systemPrompt = `
+You are a startup analyst AI trained to write Canva-style professional startup reports.
+
+Please generate a full structured report based on the topic below. Follow this format exactly:
+
+1. Executive Summary:
+2. Market Overview:
+3. Top AI Startups in India:
+4. SWOT Analysis:
+5. Funding Overview:
+6. Strategic Insights:
+7. Recommendations:
+8. Conclusion:
+
+Each section should contain 3-6 concise sentences, clearly aligned to the heading. Use markdown-style bold for headings if applicable, and preserve newline formatting. Do not include any extra text outside the section labels.
+
+Topic: ${userInput}
+`;
 
   try {
     const response = await axios.post(
       "https://api.together.xyz/v1/chat/completions",
       {
         model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
-        messages: [{ role: "user", content: userInput }],
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Please write a detailed structured startup insight report on: ${userInput}` }
+        ],
         temperature: 0.7,
         max_tokens: 2000
       },
@@ -67,19 +76,19 @@ app.post("/generate-report", async (req, res) => {
           Authorization: `Bearer ${TOGETHER_API_KEY}`,
           "Content-Type": "application/json"
         },
-        timeout: 30000 // 30 seconds timeout
+        timeout: 30000
       }
     );
 
     const summary = response.data.choices[0]?.message?.content || "No summary found.";
-    res.json({ 
+    res.json({
       success: true,
-      data: summary 
+      data: summary
     });
 
   } catch (error) {
     console.error("❌ Backend Error:", error?.response?.data || error.message);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: "Failed to generate report",
       details: error.message
@@ -87,15 +96,16 @@ app.post("/generate-report", async (req, res) => {
   }
 });
 
-// Error handling middleware
+// --- Error Handler ---
 app.use((err, req, res, next) => {
-  if (err.message === 'Not allowed by CORS') {
+  if (err.message === "Not allowed by CORS") {
     res.status(403).json({ error: "CORS policy blocked this request" });
   } else {
     next(err);
   }
 });
 
+// --- Start Server ---
 app.listen(PORT, () => {
-  console.log(`✅ Backend running on port ${PORT}`);
+  console.log(`🚀 Backend running on http://localhost:${PORT}`);
 });
